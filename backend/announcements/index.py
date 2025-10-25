@@ -30,14 +30,33 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     conn = psycopg2.connect(db_url)
     
     if method == 'GET':
+        params = event.get('queryStringParameters') or {}
+        category = params.get('category', '')
+        search = params.get('search', '')
+        
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("""
-            SELECT id, title, author_name, text, status, 
+        
+        query = """
+            SELECT id, title, author_name, text, status, category,
                    to_char(created_at, 'DD Mon YYYY') as date
             FROM announcements 
             WHERE status = 'approved'
-            ORDER BY created_at DESC
-        """)
+        """
+        
+        conditions = []
+        if category and category != 'all':
+            conditions.append(f"category = '{category}'")
+        
+        if search:
+            search_escaped = search.replace("'", "''")
+            conditions.append(f"(title ILIKE '%{search_escaped}%' OR text ILIKE '%{search_escaped}%')")
+        
+        if conditions:
+            query += " AND " + " AND ".join(conditions)
+        
+        query += " ORDER BY created_at DESC"
+        
+        cursor.execute(query)
         announcements = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -57,13 +76,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         title = body_data.get('title', '')
         author_name = body_data.get('author', '')
         text = body_data.get('text', '')
+        category = body_data.get('category', 'other')
         
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO announcements (title, author_name, text, status)
-            VALUES (%s, %s, %s, 'pending')
+            INSERT INTO announcements (title, author_name, text, category, status)
+            VALUES (%s, %s, %s, %s, 'pending')
             RETURNING id
-        """, (title, author_name, text))
+        """, (title, author_name, text, category))
         
         announcement_id = cursor.fetchone()[0]
         conn.commit()

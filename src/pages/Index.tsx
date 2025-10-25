@@ -17,6 +17,7 @@ interface AnnouncementItem {
   date: string;
   text: string;
   status: string;
+  category?: string;
 }
 
 const ANNOUNCEMENT_API = 'https://functions.poehali.dev/7ebeb6db-a4ea-4e86-bc6c-165b9e5c766e';
@@ -25,6 +26,7 @@ const Index = () => {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [announcementForm, setAnnouncementForm] = useState({
@@ -63,11 +65,21 @@ const Index = () => {
 
   useEffect(() => {
     fetchAnnouncements();
-  }, []);
+  }, [selectedCategory, searchQuery]);
 
   const fetchAnnouncements = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(ANNOUNCEMENT_API);
+      const params = new URLSearchParams();
+      if (selectedCategory !== 'all') {
+        params.append('category', selectedCategory);
+      }
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim());
+      }
+      
+      const url = params.toString() ? `${ANNOUNCEMENT_API}?${params.toString()}` : ANNOUNCEMENT_API;
+      const response = await fetch(url);
       const data = await response.json();
       setAnnouncements(data);
     } catch (error) {
@@ -104,9 +116,14 @@ const Index = () => {
     }
   };
 
-  const filteredAnnouncements = selectedCategory === 'all' 
-    ? announcements 
-    : announcements;
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleCategorySelect = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    setSearchQuery('');
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -204,7 +221,7 @@ const Index = () => {
                 className={`cursor-pointer transition-all hover:shadow-md ${
                   selectedCategory === category.id ? 'border-primary border-2' : ''
                 }`}
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => handleCategorySelect(category.id)}
               >
                 <CardContent className="p-4 text-center">
                   <Icon 
@@ -226,10 +243,21 @@ const Index = () => {
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <h3 className="text-2xl font-bold">Объявления</h3>
-            <p className="text-sm text-muted-foreground">
-              {filteredAnnouncements.length} объявлений
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="relative flex-1 sm:flex-initial">
+                <Icon name="Search" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Поиск по объявлениям..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="pl-10 w-full sm:w-64"
+                />
+              </div>
+              <p className="text-sm text-muted-foreground whitespace-nowrap">
+                {announcements.length} объявлений
             </p>
           </div>
 
@@ -237,14 +265,14 @@ const Index = () => {
             <div className="text-center py-12">
               <p className="text-muted-foreground">Загрузка объявлений...</p>
             </div>
-          ) : filteredAnnouncements.length === 0 ? (
+          ) : announcements.length === 0 ? (
             <div className="text-center py-12">
               <Icon name="FileText" size={48} className="mx-auto mb-4 text-muted-foreground opacity-50" />
               <p className="text-muted-foreground">Объявлений пока нет</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredAnnouncements.map((announcement) => (
+              {announcements.map((announcement) => (
                 <Card key={announcement.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-center justify-between mb-2">
