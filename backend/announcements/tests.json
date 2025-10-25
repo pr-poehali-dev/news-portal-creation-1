@@ -1,0 +1,28 @@
+{
+  "tests": [
+    {
+      "name": "Get approved announcements",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": [],
+      "bodyMatcher": "type"
+    },
+    {
+      "name": "Submit new announcement",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "title": "Test announcement",
+        "author": "Test User",
+        "text": "This is a test announcement"
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "id": "number",
+        "message": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
